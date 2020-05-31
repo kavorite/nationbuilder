@@ -21,7 +21,8 @@ class Session(object):
         return self
 
     async def __aexit__(self, exn_type, exn, trace):
-        await asyncio.gather(self.http.close(), *self.in_flight)
+        await asyncio.gather(*self.in_flight)
+        await self.http.close()
 
     async def backoff(self, t):
         if self.unthrottled.is_set():
