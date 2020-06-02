@@ -53,16 +53,16 @@ class Session(object):
             self.in_flight -= {asyncio.current_task()}
 
     async def get(self, path, payload=None, **kwargs):
-        return await self.do(self, path, 'GET', payload=payload, **kwargs)
+        return await self.do(path, 'GET', payload, **kwargs)
 
     async def put(self, path, payload=None, **kwargs):
-        return await self.do(self, path, 'PUT', payload=payload, **kwargs)
+        return await self.do(path, 'PUT', payload, **kwargs)
 
     async def create(self, path, payload=None, **kwargs):
-        return await self.do(self, path, 'POST', payload=payload, **kwargs)
+        return await self.do(path, 'POST', payload, **kwargs)
 
     async def delete(self, path, payload=None, **kwargs):
-        return await self.do(self, path, 'DELETE', payload=payload, **kwargs)
+        return await self.do(path, 'DELETE', payload, **kwargs)
 
     async def hydrate(self, path, limit=100, nonce=None, token=None, **kwargs):
         kwargs = dict(())
@@ -70,7 +70,7 @@ class Session(object):
             kwargs['__nonce'] = nonce
             kwargs['__token'] = token
 
-        payload = await self.do(path, limit=limit, **kwargs)
+        payload = await self.get(path, limit=limit, **kwargs)
         for x in payload['results']:
             yield x
         if 'next' not in payload or payload['next'] is not None:
