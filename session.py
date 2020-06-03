@@ -48,7 +48,10 @@ class Session(object):
                             float(rsp.headers['X-Ratelimit-Reset']) - time())
                     if requests_remaining <= self.concurrency:
                         await self.backoff(backoff)
-                    return await rsp.json()
+                    try:
+                        return await rsp.json()
+                    except aiohttp.ContentTypeError:
+                        return
         finally:
             self.in_flight -= {asyncio.current_task()}
 
@@ -58,7 +61,7 @@ class Session(object):
     async def put(self, path, payload=None, **kwargs):
         return await self.do(path, 'PUT', payload, **kwargs)
 
-    async def create(self, path, payload=None, **kwargs):
+    async def post(self, path, payload=None, **kwargs):
         return await self.do(path, 'POST', payload, **kwargs)
 
     async def delete(self, path, payload=None, **kwargs):
