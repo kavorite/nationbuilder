@@ -40,7 +40,8 @@ class Session(object):
                 uri = (f'https://{self.slug}.nationbuilder.com/api/v1'
                        f'/{path}?access_token={self.token}&')
                 uri += urlencode(kwargs)
-                headers = {'Accept': 'application/json'}
+                headers = {'Content-Type': 'application/json',
+                           'Accept': 'application/json'}
                 async with self.http.request(method, uri, json=payload,
                                              headers=headers) as rsp:
                     requests_remaining, backoff = (
