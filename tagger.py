@@ -20,31 +20,15 @@ async def main():
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
-    parser.add_argument('--nbids', required=True)
     parser.add_argument('--list', required=True)
     parser.add_argument('--tag', action='append')
     args = parser.parse_args()
     tags = tuple(set(args.tag) | {'sam_was_here'})
 
-    st_to_nb = dict(())
-    with open(args.nbids, encoding='utf-8') as istrm:
-        rows = csv.reader(istrm)
-        head = next(rows)
-        nbuid_col = next(i for i, cell in enumerate(head)
-                         if 'nationbuilder_id' in cell.lower())
-        stvid_col = next(i for i, cell in enumerate(head)
-                         if 'state_file_id' in cell.lower())
-        for row in rows:
-            try:
-                vid = int(row[stvid_col][2:])
-                uid = int(row[nbuid_col])
-                st_to_nb[vid] = uid
-            except ValueError:
-                continue
-
     rows = list(csv.reader(stdin))
     steno = csv.writer(stdout, dialect='unix')
     steno.writerow(rows[0])
+
     stvid_col = None
     while True:
         if len(rows) == 0:
@@ -56,15 +40,23 @@ async def main():
         else:
             break
 
-    uids = []
-    for row in rows:
-        vid = int(row[stvid_col][2:])
-        if vid not in st_to_nb:
-            steno.writerow(row)
-        else:
-            uids.append(st_to_nb[vid])
-
     async with Session('wiltforcongress') as nb:
+        # look up our people
+        lookups = [spawn(nb.get('/people/search',
+                                state_file_id=row[stvid_col]))
+                   for row in rows]
+        lookups = dict(zip(lookups, map(tuple, rows)))
+        uids = []
+        bar = tqdm(total=len(rows))
+        for task in asyncio.as_completed(lookups.keys()):
+            try:
+                uid = (await task)['results'][0]['id']
+                uids.append(uid)
+            except IndexError:
+                steno.writerow(lookups[task])
+            finally:
+                bar.update()
+
         lsid = None
         async for lst in nb.hydrate('/lists'):
             if lst['slug'] == args.list:
@@ -88,6 +80,7 @@ async def main():
             tasks.append(spawn(task))
             uids = uids[k:]
 
+        # batch-tag that list
         for tag in tags:
             tasks.append(spawn(nb.post(f'/lists/{lsid}/tag/{tag}')))
 
